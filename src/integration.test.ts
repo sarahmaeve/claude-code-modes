@@ -2,6 +2,9 @@ import { describe, test, expect } from "bun:test";
 import { join } from "node:path";
 import { assemblePrompt } from "./assemble.js";
 import { detectEnv, buildTemplateVars } from "./env.js";
+import { getPreset } from "./presets.js";
+import { PRESET_NAMES } from "./types.js";
+import type { ModeConfig } from "./types.js";
 
 const PROMPTS_DIR = join(import.meta.dir, "..", "prompts");
 
@@ -42,5 +45,94 @@ describe("full assembly integration", () => {
     });
 
     expect(result).toContain("readonly");
+  });
+});
+
+describe("preset assembly integration", () => {
+  const env = detectEnv();
+  const vars = buildTemplateVars(env);
+
+  for (const presetName of PRESET_NAMES) {
+    test(`${presetName} preset assembles without errors`, () => {
+      const preset = getPreset(presetName);
+      const mode: ModeConfig = {
+        axes: preset.axes,
+        modifiers: { readonly: preset.readonly },
+      };
+      const result = assemblePrompt({ mode, templateVars: vars, promptsDir: PROMPTS_DIR });
+      expect(result.length).toBeGreaterThan(0);
+      expect(result).not.toMatch(/\{\{[A-Z_]+\}\}/);
+    });
+  }
+
+  test("new-project contains architect quality content", () => {
+    const preset = getPreset("new-project");
+    const mode: ModeConfig = { axes: preset.axes, modifiers: { readonly: preset.readonly } };
+    const result = assemblePrompt({ mode, templateVars: vars, promptsDir: PROMPTS_DIR });
+    expect(result).toContain("# Quality: Architect");
+    expect(result).toContain("# Agency: Autonomous");
+    expect(result).toContain("# Scope: Unrestricted");
+    expect(result).not.toContain("# Quality: Minimal");
+    expect(result).not.toContain("# Quality: Pragmatic");
+  });
+
+  test("safe-small contains minimal quality and cautious actions", () => {
+    const preset = getPreset("safe-small");
+    const mode: ModeConfig = { axes: preset.axes, modifiers: { readonly: preset.readonly } };
+    const result = assemblePrompt({ mode, templateVars: vars, promptsDir: PROMPTS_DIR });
+    expect(result).toContain("# Quality: Minimal");
+    expect(result).toContain("# Agency: Collaborative");
+    expect(result).toContain("# Scope: Narrow");
+    expect(result).toContain("# Executing actions with care");
+    expect(result).toContain("measure twice, cut once");
+  });
+
+  test("new-project uses autonomous actions, not cautious", () => {
+    const preset = getPreset("new-project");
+    const mode: ModeConfig = { axes: preset.axes, modifiers: { readonly: preset.readonly } };
+    const result = assemblePrompt({ mode, templateVars: vars, promptsDir: PROMPTS_DIR });
+    expect(result).toContain("act freely without confirmation");
+    expect(result).not.toContain("measure twice, cut once");
+  });
+
+  test("explore includes readonly modifier", () => {
+    const preset = getPreset("explore");
+    const mode: ModeConfig = { axes: preset.axes, modifiers: { readonly: preset.readonly } };
+    const result = assemblePrompt({ mode, templateVars: vars, promptsDir: PROMPTS_DIR });
+    expect(result).toContain("Read-only mode");
+    expect(result).toContain("Do NOT create, edit, move, or delete any files");
+  });
+
+  test("none mode has no axis headers", () => {
+    const preset = getPreset("none");
+    const mode: ModeConfig = { axes: preset.axes, modifiers: { readonly: preset.readonly } };
+    const result = assemblePrompt({ mode, templateVars: vars, promptsDir: PROMPTS_DIR });
+    expect(result).not.toContain("# Agency:");
+    expect(result).not.toContain("# Quality:");
+    expect(result).not.toContain("# Scope:");
+  });
+
+  test("all presets include context pacing", () => {
+    for (const presetName of PRESET_NAMES) {
+      const preset = getPreset(presetName);
+      const mode: ModeConfig = { axes: preset.axes, modifiers: { readonly: preset.readonly } };
+      const result = assemblePrompt({ mode, templateVars: vars, promptsDir: PROMPTS_DIR });
+      expect(result).toContain("# Context and pacing");
+    }
+  });
+
+  test("axis override on preset works", () => {
+    const preset = getPreset("new-project");
+    // Override quality from architect to pragmatic
+    const mode: ModeConfig = {
+      axes: { ...preset.axes!, quality: "pragmatic" },
+      modifiers: { readonly: false },
+    };
+    const result = assemblePrompt({ mode, templateVars: vars, promptsDir: PROMPTS_DIR });
+    expect(result).toContain("# Quality: Pragmatic");
+    expect(result).not.toContain("# Quality: Architect");
+    // Agency and scope should still be from new-project
+    expect(result).toContain("# Agency: Autonomous");
+    expect(result).toContain("# Scope: Unrestricted");
   });
 });

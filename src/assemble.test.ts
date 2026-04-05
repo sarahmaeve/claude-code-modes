@@ -181,18 +181,20 @@ describe("assemblePrompt", () => {
     expect(result).toContain("# Environment");
   });
 
-  test("throws on missing fragment", () => {
-    expect(() =>
-      assemblePrompt({
-        mode: {
-          axes: { agency: "autonomous", quality: "architect", scope: "unrestricted" },
-          modifiers: { readonly: false },
-        },
-        templateVars: vars,
-        promptsDir: PROMPTS_DIR,
-      })
-    ).toThrow("Missing prompt fragment");
-    // This will throw because axis fragments don't exist in Phase 1
+  test("assembles preset mode without errors", () => {
+    const result = assemblePrompt({
+      mode: {
+        axes: { agency: "autonomous", quality: "architect", scope: "unrestricted" },
+        modifiers: { readonly: false },
+      },
+      templateVars: vars,
+      promptsDir: PROMPTS_DIR,
+    });
+    expect(result.length).toBeGreaterThan(0);
+    expect(result).not.toMatch(/\{\{[A-Z_]+\}\}/);
+    expect(result).toContain("# Agency: Autonomous");
+    expect(result).toContain("# Quality: Architect");
+    expect(result).toContain("# Scope: Unrestricted");
   });
 });
 
