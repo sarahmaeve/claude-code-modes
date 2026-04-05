@@ -31,8 +31,9 @@ Axis overrides:
   --scope <unrestricted|adjacent|narrow>
 
 Modifiers:
-  --readonly      Prevent file modifications
-  --print         Print assembled prompt instead of launching claude
+  --readonly              Prevent file modifications
+  --no-context-pacing     Disable context pacing prompt
+  --print                 Print assembled prompt instead of launching claude
 
 Forwarded to claude:
   --append-system-prompt <text>

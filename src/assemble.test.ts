@@ -65,17 +65,17 @@ describe("substituteTemplateVars", () => {
 describe("getFragmentOrder", () => {
   const noneMode: ModeConfig = {
     axes: null,
-    modifiers: { readonly: false },
+    modifiers: { readonly: false, contextPacing: true },
   };
 
   const autonomousMode: ModeConfig = {
     axes: { agency: "autonomous", quality: "architect", scope: "unrestricted" },
-    modifiers: { readonly: false },
+    modifiers: { readonly: false, contextPacing: true },
   };
 
   const collaborativeMode: ModeConfig = {
     axes: { agency: "collaborative", quality: "pragmatic", scope: "adjacent" },
-    modifiers: { readonly: false },
+    modifiers: { readonly: false, contextPacing: true },
   };
 
   test("none mode has no axis fragments", () => {
@@ -118,13 +118,18 @@ describe("getFragmentOrder", () => {
     expect(order).toContain("axis/scope/unrestricted.md");
   });
 
-  test("always includes context-pacing", () => {
+  test("includes context-pacing by default", () => {
     expect(getFragmentOrder(noneMode)).toContain("modifiers/context-pacing.md");
     expect(getFragmentOrder(autonomousMode)).toContain("modifiers/context-pacing.md");
   });
 
+  test("excludes context-pacing when disabled", () => {
+    const noContextPacing: ModeConfig = { axes: null, modifiers: { readonly: false, contextPacing: false } };
+    expect(getFragmentOrder(noContextPacing)).not.toContain("modifiers/context-pacing.md");
+  });
+
   test("includes readonly only when flagged", () => {
-    const readonlyMode: ModeConfig = { axes: null, modifiers: { readonly: true } };
+    const readonlyMode: ModeConfig = { axes: null, modifiers: { readonly: true, contextPacing: true } };
     expect(getFragmentOrder(readonlyMode)).toContain("modifiers/readonly.md");
     expect(getFragmentOrder(noneMode)).not.toContain("modifiers/readonly.md");
   });
@@ -138,7 +143,7 @@ describe("getFragmentOrder", () => {
 describe("assemblePrompt", () => {
   test("assembles none mode without errors", () => {
     const result = assemblePrompt({
-      mode: { axes: null, modifiers: { readonly: false } },
+      mode: { axes: null, modifiers: { readonly: false, contextPacing: true } },
       templateVars: TEST_VARS,
       promptsDir: PROMPTS_DIR,
     });
@@ -147,7 +152,7 @@ describe("assemblePrompt", () => {
 
   test("assembled prompt has no unreplaced template variables", () => {
     const result = assemblePrompt({
-      mode: { axes: null, modifiers: { readonly: false } },
+      mode: { axes: null, modifiers: { readonly: false, contextPacing: true } },
       templateVars: TEST_VARS,
       promptsDir: PROMPTS_DIR,
     });
@@ -156,7 +161,7 @@ describe("assemblePrompt", () => {
 
   test("assembled prompt contains key sections", () => {
     const result = assemblePrompt({
-      mode: { axes: null, modifiers: { readonly: false } },
+      mode: { axes: null, modifiers: { readonly: false, contextPacing: true } },
       templateVars: TEST_VARS,
       promptsDir: PROMPTS_DIR,
     });
@@ -173,7 +178,7 @@ describe("assemblePrompt", () => {
     const result = assemblePrompt({
       mode: {
         axes: { agency: "autonomous", quality: "architect", scope: "unrestricted" },
-        modifiers: { readonly: false },
+        modifiers: { readonly: false, contextPacing: true },
       },
       templateVars: TEST_VARS,
       promptsDir: PROMPTS_DIR,

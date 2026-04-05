@@ -13,7 +13,7 @@ describe("full assembly integration", () => {
     const env = detectEnv();
     const vars = buildTemplateVars(env);
     const result = assemblePrompt({
-      mode: { axes: null, modifiers: { readonly: false } },
+      mode: { axes: null, modifiers: { readonly: false, contextPacing: true } },
       templateVars: vars,
       promptsDir: PROMPTS_DIR,
     });
@@ -39,7 +39,7 @@ describe("full assembly integration", () => {
     const env = detectEnv();
     const vars = buildTemplateVars(env);
     const result = assemblePrompt({
-      mode: { axes: null, modifiers: { readonly: true } },
+      mode: { axes: null, modifiers: { readonly: true, contextPacing: true } },
       templateVars: vars,
       promptsDir: PROMPTS_DIR,
     });
@@ -57,7 +57,7 @@ describe("preset assembly integration", () => {
       const preset = getPreset(presetName);
       const mode: ModeConfig = {
         axes: preset.axes,
-        modifiers: { readonly: preset.readonly },
+        modifiers: { readonly: preset.readonly, contextPacing: true },
       };
       const result = assemblePrompt({ mode, templateVars: vars, promptsDir: PROMPTS_DIR });
       expect(result.length).toBeGreaterThan(0);
@@ -67,7 +67,7 @@ describe("preset assembly integration", () => {
 
   test("create contains architect quality content", () => {
     const preset = getPreset("create");
-    const mode: ModeConfig = { axes: preset.axes, modifiers: { readonly: preset.readonly } };
+    const mode: ModeConfig = { axes: preset.axes, modifiers: { readonly: preset.readonly, contextPacing: true } };
     const result = assemblePrompt({ mode, templateVars: vars, promptsDir: PROMPTS_DIR });
     expect(result).toContain("# Quality: Architect");
     expect(result).toContain("# Agency: Autonomous");
@@ -78,7 +78,7 @@ describe("preset assembly integration", () => {
 
   test("safe contains minimal quality and cautious actions", () => {
     const preset = getPreset("safe");
-    const mode: ModeConfig = { axes: preset.axes, modifiers: { readonly: preset.readonly } };
+    const mode: ModeConfig = { axes: preset.axes, modifiers: { readonly: preset.readonly, contextPacing: true } };
     const result = assemblePrompt({ mode, templateVars: vars, promptsDir: PROMPTS_DIR });
     expect(result).toContain("# Quality: Minimal");
     expect(result).toContain("# Agency: Collaborative");
@@ -89,7 +89,7 @@ describe("preset assembly integration", () => {
 
   test("create uses autonomous actions, not cautious", () => {
     const preset = getPreset("create");
-    const mode: ModeConfig = { axes: preset.axes, modifiers: { readonly: preset.readonly } };
+    const mode: ModeConfig = { axes: preset.axes, modifiers: { readonly: preset.readonly, contextPacing: true } };
     const result = assemblePrompt({ mode, templateVars: vars, promptsDir: PROMPTS_DIR });
     expect(result).toContain("act freely without confirmation");
     expect(result).not.toContain("measure twice, cut once");
@@ -97,7 +97,7 @@ describe("preset assembly integration", () => {
 
   test("explore includes readonly modifier", () => {
     const preset = getPreset("explore");
-    const mode: ModeConfig = { axes: preset.axes, modifiers: { readonly: preset.readonly } };
+    const mode: ModeConfig = { axes: preset.axes, modifiers: { readonly: preset.readonly, contextPacing: true } };
     const result = assemblePrompt({ mode, templateVars: vars, promptsDir: PROMPTS_DIR });
     expect(result).toContain("Read-only mode");
     expect(result).toContain("Do NOT create, edit, move, or delete any files");
@@ -105,7 +105,7 @@ describe("preset assembly integration", () => {
 
   test("none mode has no axis headers", () => {
     const preset = getPreset("none");
-    const mode: ModeConfig = { axes: preset.axes, modifiers: { readonly: preset.readonly } };
+    const mode: ModeConfig = { axes: preset.axes, modifiers: { readonly: preset.readonly, contextPacing: true } };
     const result = assemblePrompt({ mode, templateVars: vars, promptsDir: PROMPTS_DIR });
     expect(result).not.toContain("# Agency:");
     expect(result).not.toContain("# Quality:");
@@ -115,7 +115,7 @@ describe("preset assembly integration", () => {
   test("all presets include context pacing", () => {
     for (const presetName of PRESET_NAMES) {
       const preset = getPreset(presetName);
-      const mode: ModeConfig = { axes: preset.axes, modifiers: { readonly: preset.readonly } };
+      const mode: ModeConfig = { axes: preset.axes, modifiers: { readonly: preset.readonly, contextPacing: true } };
       const result = assemblePrompt({ mode, templateVars: vars, promptsDir: PROMPTS_DIR });
       expect(result).toContain("# Context and pacing");
     }
@@ -126,7 +126,7 @@ describe("preset assembly integration", () => {
     // Override quality from architect to pragmatic
     const mode: ModeConfig = {
       axes: { ...preset.axes!, quality: "pragmatic" },
-      modifiers: { readonly: false },
+      modifiers: { readonly: false, contextPacing: true },
     };
     const result = assemblePrompt({ mode, templateVars: vars, promptsDir: PROMPTS_DIR });
     expect(result).toContain("# Quality: Pragmatic");

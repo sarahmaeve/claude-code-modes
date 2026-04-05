@@ -27,6 +27,7 @@ export interface ModeConfig {
   axes: AxisConfig | null; // null for "none" mode
   modifiers: {
     readonly: boolean;
+    contextPacing: boolean;
   };
 }
 

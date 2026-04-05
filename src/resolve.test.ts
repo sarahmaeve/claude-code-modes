@@ -5,7 +5,7 @@ import type { ParsedArgs } from "./args.js";
 const baseParsed: ParsedArgs = {
   preset: null,
   overrides: {},
-  modifiers: { readonly: false, print: false },
+  modifiers: { readonly: false, print: false, noContextPacing: false },
   forwarded: {},
   passthroughArgs: [],
 };
@@ -49,7 +49,7 @@ describe("resolveConfig", () => {
     const config = resolveConfig({
       ...baseParsed,
       preset: "create",
-      modifiers: { readonly: true, print: false },
+      modifiers: { readonly: true, print: false, noContextPacing: false },
     });
     expect(config.modifiers.readonly).toBe(true);
   });
@@ -58,7 +58,7 @@ describe("resolveConfig", () => {
     const config = resolveConfig({
       ...baseParsed,
       preset: "explore",
-      modifiers: { readonly: false, print: false },
+      modifiers: { readonly: false, print: false, noContextPacing: false },
     });
     expect(config.modifiers.readonly).toBe(true);
   });

@@ -95,6 +95,7 @@ Add modifiers:
 
 ```bash
 claude-mode create --readonly              # Prevent file modifications
+claude-mode create --no-context-pacing     # Disable context pacing prompt
 claude-mode create --append-system-prompt "Use Rust, not TypeScript"
 ```
 
@@ -126,6 +127,16 @@ claude-mode explore --print
 - **unrestricted** — Free to create, reorganize, restructure
 - **adjacent** — Fix related issues in the neighborhood
 - **narrow** — Only what was explicitly asked
+
+## Context pacing
+
+All modes — including `none` — include a context pacing modifier that tells Claude it's okay to pause at a natural stopping point rather than rushing to finish as context fills up. This addresses a real failure pattern: as context gets long, Claude starts cutting corners, skipping error handling, and leaving broken code.
+
+## Why this matters
+
+Anthropic's recent interpretability research ([Emotion Concepts and their Function in a Large Language Model](https://transformer-circuits.pub/2026/emotions/index.html)) found that Claude has internal emotion-like representations that causally influence its behavior — including misaligned behaviors like sycophancy and reward hacking. Situational pressure (impossible constraints, urgency framing) activates states like "desperation" that directly increase bad outputs.
+
+System prompt instructions create exactly this kind of situational context. When the default prompt tells Claude to "be concise" and "make the smallest change," it's not just a suggestion — it's shaping internal states that cause Claude to suppress reasoning and cut scope even when the task requires more. `claude-mode` gives you control over that framing.
 
 ## Development
 

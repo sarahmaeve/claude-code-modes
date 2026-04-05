@@ -67,8 +67,10 @@ export function getFragmentOrder(mode: ModeConfig): string[] {
   fragments.push("base/tone.md");
   fragments.push("base/session-guidance.md");
 
-  // Modifiers — always included
-  fragments.push("modifiers/context-pacing.md");
+  // Context pacing — included by default, can be disabled with --no-context-pacing
+  if (mode.modifiers.contextPacing) {
+    fragments.push("modifiers/context-pacing.md");
+  }
 
   // Conditional modifiers
   if (mode.modifiers.readonly) {
