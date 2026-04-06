@@ -33,18 +33,21 @@ export type PresetName = (typeof PRESET_NAMES)[number];
 ```
 
 ### Example 4: Runtime validation with `.includes()`
-**File**: `src/args.ts:83-89`
+**File**: `src/resolve.ts:39,72`
 ```typescript
-// Uses the const array for runtime .includes() check
-function validateAxisValue<T extends string>(
-  value: unknown,
-  validValues: readonly T[],   // receives AGENCY_VALUES, QUALITY_VALUES, etc.
-  flagName: string,
-): T {
-  if (!(validValues as readonly string[]).includes(value as string)) {
-    throw new Error(`Invalid --${flagName} value: "${value}". Must be one of: ${validValues.join(", ")}`);
+// resolveAxisValue: uses AGENCY_VALUES (etc.) for runtime .includes() check
+function resolveAxisValue(raw: string, axisName: "agency" | "quality" | "scope",
+  builtinValues: readonly string[], loadedConfig: LoadedConfig | null): string {
+  if (builtinValues.includes(raw)) return raw;  // .includes() against the const array
+  // ...
+}
+
+// resolveModifier: uses BUILTIN_MODIFIER_NAMES for collision detection
+function resolveModifier(raw: string, loadedConfig: LoadedConfig | null) {
+  if ((BUILTIN_MODIFIER_NAMES as readonly string[]).includes(raw)) {
+    return { kind: "builtin", name: raw };
   }
-  return value as T;
+  // ...
 }
 ```
 

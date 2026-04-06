@@ -8,21 +8,32 @@ Throwing early means errors surface at the right layer with maximum context. Mod
 
 ## Examples
 
-### Example 1: Axis value validation in args.ts
-**File**: `src/args.ts:24-35`
+### Example 1: Unknown axis value in resolve.ts
+**File**: `src/resolve.ts:32-61`
 ```typescript
-function validateAxisValue<T extends string>(value: unknown, validValues: readonly T[], flagName: string): T {
-  if (!(validValues as readonly string[]).includes(value as string)) {
-    throw new Error(
-      `Invalid --${flagName} value: "${value}". Must be one of: ${validValues.join(", ")}`
-    );
+function resolveAxisValue(raw: string, axisName: "agency" | "quality" | "scope",
+  builtinValues: readonly string[], loadedConfig: LoadedConfig | null): string {
+  if (builtinValues.includes(raw)) return raw;
+  const configAxes = loadedConfig?.config.axes?.[axisName];
+  if (configAxes && raw in configAxes) {
+    return resolveConfigPath(loadedConfig!.configDir, configAxes[raw]);
   }
-  return value as T;
+  if (looksLikeFilePath(raw)) {
+    return isAbsolute(raw) ? raw : pathResolve(raw);
+  }
+  const configHint = loadedConfig
+    ? ` Config loaded from: ${loadedConfig.configDir}`
+    : " No config file found.";
+  throw new Error(
+    `Unknown --${axisName} value: "${raw}". ` +
+    `Must be one of: ${builtinValues.join(", ")}, ` +
+    `a name defined in your config, or a file path.${configHint}`
+  );
 }
 ```
 
 ### Example 2: Incompatible flag rejection
-**File**: `src/args.ts:61-66`
+**File**: `src/args.ts:50-55`
 ```typescript
 if (values["system-prompt"] !== undefined || values["system-prompt-file"] !== undefined) {
   throw new Error(
@@ -33,16 +44,15 @@ if (values["system-prompt"] !== undefined || values["system-prompt-file"] !== un
 ```
 
 ### Example 3: Missing prompt fragment
-**File**: `src/assemble.ts:94-96`
+**File**: `src/assemble.ts:124-126`
 ```typescript
-const content = readFragment(promptsDir, relPath);
 if (content === null) {
-  throw new Error(`Missing prompt fragment: ${relPath}`);
+  throw new Error(`Missing prompt fragment: ${fragPath}`);
 }
 ```
 
 ### Example 4: Unreplaced template variables
-**File**: `src/assemble.ts:30-35`
+**File**: `src/assemble.ts:31-36`
 ```typescript
 const unreplaced = result.match(/\{\{[A-Z_]+\}\}/g);
 if (unreplaced) {
@@ -53,7 +63,7 @@ if (unreplaced) {
 ```
 
 ### Example 5: Single catch at CLI boundary
-**File**: `src/build-prompt.ts:62-68`
+**File**: `src/build-prompt.ts:83-88`
 ```typescript
 let parsed;
 try {

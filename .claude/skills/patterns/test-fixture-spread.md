@@ -9,19 +9,20 @@ Tests that inline every field on every call make it hard to see what's being var
 ## Examples
 
 ### Example 1: `baseParsed` for args/resolve tests
-**File**: `src/resolve.test.ts:5-11`
+**File**: `src/resolve.test.ts:6-13`
 ```typescript
 const baseParsed: ParsedArgs = {
   preset: null,
   overrides: {},
-  modifiers: { readonly: false, print: false },
+  modifiers: { readonly: false, print: false, contextPacing: false },
+  customModifiers: [],
   forwarded: {},
   passthroughArgs: [],
 };
 
 // Then each test specifies only what differs:
-test("preset with no overrides", () => {
-  const config = resolveConfig({ ...baseParsed, preset: "create" });
+test("preset with no overrides returns preset axes", () => {
+  const config = resolveConfig({ ...baseParsed, preset: "create" }, null);
   expect(config.axes).toEqual({ agency: "autonomous", quality: "architect", scope: "unrestricted" });
 });
 
@@ -29,8 +30,8 @@ test("--readonly flag", () => {
   const config = resolveConfig({
     ...baseParsed,
     preset: "create",
-    modifiers: { readonly: true, print: false },
-  });
+    modifiers: { readonly: true, print: false, contextPacing: false },
+  }, null);
   expect(config.modifiers.readonly).toBe(true);
 });
 ```
@@ -63,7 +64,7 @@ const TEST_VARS: TemplateVars = {
 // Reused directly across all test functions in the file
 test("assembles none mode without errors", () => {
   const result = assemblePrompt({
-    mode: { axes: null, modifiers: { readonly: false } },
+    mode: { axes: null, modifiers: { readonly: false, contextPacing: false, custom: [] } },
     templateVars: TEST_VARS,
     promptsDir: PROMPTS_DIR,
   });
@@ -74,10 +75,13 @@ test("assembles none mode without errors", () => {
 ### Example 4: Mode config fixtures for assemble tests
 **File**: `src/assemble.test.ts:66-79`
 ```typescript
-const noneMode: ModeConfig = { axes: null, modifiers: { readonly: false } };
+const noneMode: ModeConfig = {
+  axes: null,
+  modifiers: { readonly: false, contextPacing: false, custom: [] },
+};
 const autonomousMode: ModeConfig = {
   axes: { agency: "autonomous", quality: "architect", scope: "unrestricted" },
-  modifiers: { readonly: false },
+  modifiers: { readonly: false, contextPacing: false, custom: [] },
 };
 ```
 

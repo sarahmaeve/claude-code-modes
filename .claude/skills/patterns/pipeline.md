@@ -9,7 +9,7 @@ Separating parsing from business logic from output assembly means each layer can
 ## Examples
 
 ### Example 1: The four pipeline stages
-**File**: `src/build-prompt.ts:62-108`
+**File**: `src/build-prompt.ts:82-118`
 ```typescript
 // Stage 1: Parse raw input → ParsedArgs
 let parsed;
@@ -20,8 +20,17 @@ try {
   process.exit(1);
 }
 
-// Stage 2: Resolve into final config → ModeConfig
-const config = resolveConfig(parsed);
+// Stage 1b: Load config from disk (between parse and resolve)
+let loadedConfig;
+try {
+  loadedConfig = loadConfig();
+} catch (err) {
+  process.stderr.write(`Error: ${(err as Error).message}\n`);
+  process.exit(1);
+}
+
+// Stage 2: Resolve into final config → ModeConfig (pure, receives loaded config)
+const config = resolveConfig(parsed, loadedConfig);
 
 // Stage 2b: Detect and format environment → TemplateVars
 const env = detectEnv();
@@ -32,38 +41,49 @@ const prompt = assemblePrompt({ mode: config, templateVars, promptsDir });
 ```
 
 ### Example 2: Parse stage produces flat, typed output
-**File**: `src/args.ts:6-22`
+**File**: `src/args.ts:3-21`
 ```typescript
 export interface ParsedArgs {
-  preset: PresetName | null;
-  overrides: { agency?: Agency; quality?: Quality; scope?: Scope; };
-  modifiers: { readonly: boolean; print: boolean; };
+  preset: string | null;
+  overrides: { agency?: string; quality?: string; scope?: string; };
+  modifiers: { readonly: boolean; print: boolean; contextPacing: boolean; };
+  customModifiers: string[];
   forwarded: { appendSystemPrompt?: string; appendSystemPromptFile?: string; };
   passthroughArgs: string[];
 }
 ```
 
 ### Example 3: Resolve stage merges with defaults, no I/O
-**File**: `src/resolve.ts:9-49`
+**File**: `src/resolve.ts:102-130`
 ```typescript
-export function resolveConfig(parsed: ParsedArgs): ModeConfig {
-  // No side effects — pure transformation
-  const agency = parsed.overrides.agency ?? preset.axes.agency;
-  const quality = parsed.overrides.quality ?? preset.axes.quality;
-  const scope = parsed.overrides.scope ?? preset.axes.scope;
-  return { axes: { agency, quality, scope }, modifiers: { readonly } };
+export function resolveConfig(
+  parsed: ParsedArgs,
+  loadedConfig: LoadedConfig | null,
+): ModeConfig {
+  // No side effects except reading loadedConfig (already loaded by caller)
+  const flags = { readonly: parsed.modifiers.readonly, contextPacing: parsed.modifiers.contextPacing };
+  const customModifierPaths: string[] = [];
+  if (config?.defaultModifiers) {
+    applyModifiers(config.defaultModifiers, loadedConfig, flags, customModifierPaths, "append");
+  }
+  applyModifiers(parsed.customModifiers, loadedConfig, flags, customModifierPaths, "append");
+  // ... axis resolution ...
+  return { axes: { agency, quality, scope }, modifiers: { readonly: flags.readonly, ... } };
 }
 ```
 
 ### Example 4: Assemble stage reads files and substitutes variables
-**File**: `src/assemble.ts:87-102`
+**File**: `src/assemble.ts:106-132`
 ```typescript
 export function assemblePrompt(options: AssembleOptions): string {
+  const { mode, templateVars, promptsDir } = options;
   const fragmentPaths = getFragmentOrder(mode);
   const sections: string[] = [];
-  for (const relPath of fragmentPaths) {
-    const content = readFragment(promptsDir, relPath);
-    if (content === null) throw new Error(`Missing prompt fragment: ${relPath}`);
+  for (const fragPath of fragmentPaths) {
+    const fullPath = isAbsolute(fragPath) ? fragPath : resolve(promptsDir, fragPath);
+    let content: string | null;
+    try { content = readFileSync(fullPath, "utf8"); } catch { content = null; }
+    if (content === null) throw new Error(`Missing prompt fragment: ${fragPath}`);
     sections.push(content.trim());
   }
   return substituteTemplateVars(sections.join("\n\n"), templateVars);

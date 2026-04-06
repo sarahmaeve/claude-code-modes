@@ -9,7 +9,7 @@ Both the TypeScript binary (`bun run build-prompt.ts`) and the bash wrapper (`./
 ## Examples
 
 ### Example 1: Integration tests for the TypeScript binary
-**File**: `src/build-prompt.test.ts:6-12`
+**File**: `src/build-prompt.test.ts:4-8`
 ```typescript
 import { createCliRunner } from "./test-helpers.js";
 

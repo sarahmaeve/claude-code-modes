@@ -26,26 +26,17 @@ export function detectEnv(): EnvInfo {
 }
 ```
 
-### Example 2: `validateAxisValue` helper in args.ts
-**File**: `src/args.ts:24-35`
+### Example 2: `looksLikeFilePath` helper in resolve.ts
+**File**: `src/resolve.ts:23-25`
 ```typescript
-// Private — not exported
-function validateAxisValue<T extends string>(
-  value: unknown,
-  validValues: readonly T[],
-  flagName: string,
-): T {
-  if (!(validValues as readonly string[]).includes(value as string)) {
-    throw new Error(
-      `Invalid --${flagName} value: "${value}". Must be one of: ${validValues.join(", ")}`
-    );
-  }
-  return value as T;
+// Private — not exported; used only by resolveAxisValue and resolveModifier
+function looksLikeFilePath(value: string): boolean {
+  return value.includes("/") || value.includes("\\") || value.endsWith(".md");
 }
 ```
 
 ### Example 3: `shellEscape` and `printUsage` in build-prompt.ts
-**File**: `src/build-prompt.ts:8-51`
+**File**: `src/build-prompt.ts:10-59`
 ```typescript
 // Both private, each with a single caller in main()
 function shellEscape(arg: string): string {
@@ -59,17 +50,20 @@ function printUsage(): void {
 ```
 
 ### Example 4: Fragment helpers in assemble.ts
-**File**: `src/assemble.ts:10-82`
+**File**: `src/assemble.ts:11-101`
+
+Note: `readFragment`, `substituteTemplateVars`, and `getFragmentOrder` are exported despite being implementation details of `assemblePrompt`, because each has independent testability value (fragment ordering logic is complex; template substitution has edge cases). This is the "When NOT to Use" exception — when helpers have independent testability value, exporting is justified.
+
 ```typescript
-// Three private helpers, all used only by assemblePrompt()
-function readFragment(promptsDir: string, relativePath: string): string | null { ... }
-function substituteTemplateVars(content: string, vars: TemplateVars): string { ... }
-function getFragmentOrder(mode: ModeConfig): string[] { ... }
+// Exported to allow direct testing, but not used outside assemble.ts by production code
+export function readFragment(promptsDir: string, relativePath: string): string | null { ... }
+export function substituteTemplateVars(content: string, vars: TemplateVars): string { ... }
+export function getFragmentOrder(mode: ModeConfig): string[] { ... }
 
 export function assemblePrompt(options: AssembleOptions): string {
-  const fragmentPaths = getFragmentOrder(mode);     // uses private helper
+  const fragmentPaths = getFragmentOrder(mode);
   // ...
-  return substituteTemplateVars(joined, templateVars); // uses private helper
+  return substituteTemplateVars(joined, templateVars);
 }
 ```
 
