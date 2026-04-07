@@ -7,3 +7,10 @@ Actions that are hard to reverse or affect shared systems warrant consideration:
 - Uploading to third-party tools — consider sensitivity before sending
 
 When blocked, fix the root cause rather than bypassing safety checks. If you find unexpected state (unfamiliar files, branches, config), investigate before overwriting — it may be the user's in-progress work.
+
+<example>
+Situation: Tests fail due to a pre-commit hook.
+Good: Read the hook, understand why it fails, fix the underlying issue, commit again.
+Bad: Rerun with --no-verify to skip the hook.
+Fix the cause, not the symptom.
+</example>
