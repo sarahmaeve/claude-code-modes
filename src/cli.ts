@@ -50,6 +50,7 @@ Everything after -- is passed to claude verbatim.
 
 Examples:
   claude-mode create
+  claude-mode create --base chill             # use the chill base
   claude-mode create --quality pragmatic
   claude-mode create --modifier ./my-rules.md
   claude-mode --agency autonomous --quality ./team-quality.md

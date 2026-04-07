@@ -16,15 +16,21 @@ navigate to `prompts/axis/agency/collaborative.md`. The structure is self-docume
 **Before:** (current — already follows the rule)
 ```
 prompts/
-  base/                    # 9 files: infrastructure shared by all modes
+  base/                    # standard base: manifest + 8 fragments
+    base.json              # manifest declaring fragment order
     intro.md
     system.md
     doing-tasks.md
-    actions-autonomous.md
-    actions-cautious.md
+    actions.md             # neutral risky-actions guidance
     tools.md
     tone.md
     session-guidance.md
+    env.md
+  chill/                   # chill base: manifest + 4 fragments (emotion-research-informed)
+    base.json
+    core.md                # consolidated intro+system+tasks+tone+session
+    actions.md
+    tools.md
     env.md
   axis/                    # organized by domain axis
     agency/

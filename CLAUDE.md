@@ -20,19 +20,23 @@ bun run src/cli.ts create                   # full e2e (needs claude installed)
 src/
   types.ts         # all enums, types, interfaces — single source of truth
   env.ts           # system environment detection (git, platform, shell)
-  assemble.ts      # prompt fragment assembly pipeline
+  assemble.ts      # manifest-driven prompt fragment assembly pipeline
   presets.ts       # preset name → AxisConfig mapping
   args.ts          # CLI arg parsing → ParsedArgs
-  resolve.ts       # ParsedArgs + config → ModeConfig (axis/modifier resolution)
+  resolve.ts       # ParsedArgs + config → ModeConfig (axis/modifier/base resolution)
   config.ts        # .claude-mode.json loading, validation, collision checks
   config-cli.ts    # `claude-mode config` subcommand (init, show, add/remove)
-  build-prompt.ts  # main binary: orchestrates pipeline, outputs claude command
+  inspect.ts       # `claude-mode inspect` subcommand (fragment provenance, warnings)
+  cli.ts           # main entry point: spawns claude with assembled prompt
+  build-prompt.ts  # alternative entry: outputs claude command string for scripting
   test-helpers.ts  # shared test utilities (createCliRunner, makeTempDir, PROJECT_ROOT)
 prompts/
-  base/            # 9 fragments: intro, system, doing-tasks, actions-*, tools, tone, session-guidance, env
+  base/            # standard base: base.json manifest + 8 fragments
+  chill/           # chill base: base.json manifest + 4 fragments (emotion-research-informed)
   axis/            # 9 fragments: agency/{autonomous,collaborative,surgical}, quality/{architect,pragmatic,minimal}, scope/{unrestricted,adjacent,narrow}
   modifiers/       # context-pacing.md, readonly.md
 scripts/
+  generate-prompts.ts         # embeds prompt fragments into src/embedded-prompts.ts
   extract-upstream-prompt.ts  # downloads CC npm package, extracts system prompt functions
 upstream-prompts/             # (gitignored) extracted upstream prompts for diffing
 ```
@@ -55,11 +59,14 @@ Parse (args.ts) → Load config (config.ts) → Resolve (resolve.ts) → Detect 
 
 ```json
 {
+  "defaultBase": "chill",
   "defaultModifiers": ["team-rules"],
+  "bases": { "custom-base": "./prompts/my-base" },
   "modifiers": { "team-rules": "./prompts/team-rules.md" },
   "axes": { "quality": { "team-standard": "./prompts/team-quality.md" } },
   "presets": {
     "team": {
+      "base": "chill",
       "agency": "collaborative",
       "quality": "team-standard",
       "scope": "adjacent",
@@ -83,7 +90,9 @@ Run `bun run scripts/extract-upstream-prompt.ts [version]` to extract upstream p
 - `explore` preset defaults to `readonly: true`
 - `none` mode strips all behavioral instructions, leaving only infrastructure
 - Axis values accept built-in names, config-defined names, or file paths — resolution order: built-in → config → path
-- Custom agency file path defaults to cautious actions variant
+- Bases are manifest-driven: `base.json` declares fragment order with `"axes"` and `"modifiers"` as reserved insertion points
+- Built-in bases: "standard" (upstream-derived), "chill" (emotion-research-informed, leaner)
+- `--base` flag selects a base; resolution order: built-in → config → directory path
 - Config: project-local wins entirely if present (no merging with global)
 - Model name/ID hardcoded in `env.ts` — update on Claude Code releases
 - `cli.ts` uses `Bun.spawn` with inherited stdio for direct TTY ownership; `build-prompt.ts` outputs command string for scripting

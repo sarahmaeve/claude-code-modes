@@ -51,6 +51,12 @@ claude-mode --agency autonomous --quality architect --scope unrestricted
 
 When no preset and not all three axes specified, defaults are: `agency=collaborative`, `quality=pragmatic`, `scope=adjacent`.
 
+### Base Selection
+
+- `--base <name|path>` — Selects the base prompt. Built-in: `standard` (default), `chill`. Also accepts config-defined names or directory paths containing a `base.json` manifest.
+
+Resolution order: built-in → config → directory path heuristic. Priority chain: CLI `--base` > config `defaultBase` > `"standard"`.
+
 ### Modifiers
 
 - `--readonly` — Appends readonly instructions. Intended for explore-style sessions.
@@ -74,7 +80,9 @@ Loaded from `.claude-mode.json` in CWD, falling back to `~/.config/claude-mode/c
 
 ```json
 {
+  "defaultBase": "<name>",
   "defaultModifiers": ["<name>"],
+  "bases": { "<name>": "<directory-path>" },
   "modifiers": { "<name>": "<path>" },
   "axes": {
     "agency": { "<name>": "<path>" },
@@ -83,6 +91,7 @@ Loaded from `.claude-mode.json` in CWD, falling back to `~/.config/claude-mode/c
   },
   "presets": {
     "<name>": {
+      "base": "<name>",
       "agency": "<value>",
       "quality": "<value>",
       "scope": "<value>",
@@ -122,21 +131,23 @@ claude-mode create --verbose --model sonnet
 
 ## Prompt Assembly
 
-### Fragment Order
+### Manifest-Driven Fragment Order
 
-1. `base/intro.md` — Identity, cyber risk instruction
-2. `base/system.md` — Tool permissions, hooks, tags, context compression
-3. `axis/agency/<value>.md` — Agency posture (skipped for `none`)
-4. `axis/quality/<value>.md` — Quality standard (skipped for `none`)
-5. `axis/scope/<value>.md` — Scope boundaries (skipped for `none`)
-6. `base/doing-tasks.md` — Universal task instructions (read before edit, security, diagnostics)
-7. `base/actions.md` — Risky action guidance (full for surgical/collaborative, relaxed for autonomous)
-8. `base/tools.md` — Tool usage preferences
-9. `base/tone.md` — Style guidelines
-10. `modifiers/context-pacing.md` — Only if `--context-pacing` flag
-11. `modifiers/readonly.md` — Only if `--readonly` flag
-12. Custom modifier fragments — `defaultModifiers` + preset modifiers + `--modifier` flags, in order
-13. `base/env.md` — Dynamically rendered environment info (always last)
+Each base has a `base.json` manifest — a flat JSON array of strings. Two reserved words control insertion:
+- `"axes"` — where axis fragments (agency/quality/scope) are inserted (skipped for `none` mode)
+- `"modifiers"` — where modifier fragments are inserted (context-pacing, readonly, custom)
+
+**Standard base manifest** (`prompts/base/base.json`):
+```json
+["intro.md", "system.md", "axes", "doing-tasks.md", "actions.md", "tools.md", "tone.md", "session-guidance.md", "modifiers", "env.md"]
+```
+
+**Chill base manifest** (`prompts/chill/base.json`):
+```json
+["core.md", "axes", "actions.md", "tools.md", "modifiers", "env.md"]
+```
+
+Fragment filenames are relative to the base directory. The assembler walks the manifest top to bottom, expanding `"axes"` and `"modifiers"` entries into the appropriate fragments based on the resolved mode config.
 
 ### Template Variables
 
@@ -158,9 +169,12 @@ claude-mode create --verbose --model sonnet
 
 Assembles only: intro, system, doing-tasks, actions, tools, tone, context-pacing, env. No axis fragments. No output efficiency section. Behavioral vacuum for user-provided instructions to fill.
 
-### The `actions.md` Variance
+### Actions and Agency
 
-The risky-actions section (`base/actions.md`) is the one base section that varies by mode. For autonomous agency, the section is softened — Claude is told it can freely create files, branches, and make structural changes without confirmation for local-only operations. For collaborative and surgical, the full cautious version is used. This is handled by having two variants: `actions-autonomous.md` and `actions-cautious.md`, selected by the agency axis value.
+Each base has a single `actions.md` that lists what constitutes risky actions (destructive, hard-to-reverse, externally visible). The behavioral difference — whether to act freely or check with the user — is handled by the agency axis fragments:
+- `axis/agency/autonomous.md` tells Claude to act freely on local, reversible actions
+- `axis/agency/collaborative.md` tells Claude to check in at decision points
+- `axis/agency/surgical.md` tells Claude to execute exactly what was asked
 
 ## Environment Detection
 
@@ -189,25 +203,35 @@ claude-code-modes/
 ├── package.json
 ├── tsconfig.json
 ├── src/
-│   ├── build-prompt.ts            # main: parse args, compose, print command
+│   ├── cli.ts                     # main entry: spawns claude with assembled prompt
+│   ├── build-prompt.ts            # alternative entry: outputs claude command string
 │   ├── args.ts                    # CLI arg parsing → ParsedArgs
-│   ├── resolve.ts                 # ParsedArgs + config → ModeConfig
+│   ├── resolve.ts                 # ParsedArgs + config → ModeConfig (axis/modifier/base)
 │   ├── config.ts                  # config file loading, validation, collision checks
 │   ├── config-cli.ts              # `claude-mode config` subcommand
+│   ├── inspect.ts                 # `claude-mode inspect` subcommand
 │   ├── env.ts                     # shell commands for env detection
 │   ├── presets.ts                 # preset → axis mapping
-│   ├── assemble.ts                # reads fragments, substitutes templates, concatenates
+│   ├── assemble.ts                # manifest-driven fragment assembly
+│   ├── embedded-prompts.ts        # auto-generated: built-in fragments as strings
 │   └── types.ts                   # enums, types, interfaces
 ├── prompts/
-│   ├── base/
+│   ├── base/                      # standard base
+│   │   ├── base.json              # manifest
 │   │   ├── intro.md
 │   │   ├── system.md
-│   │   ├── doing-tasks.md         # universal task instructions (no behavioral opinions)
-│   │   ├── actions-autonomous.md  # relaxed risky-action guidance
-│   │   ├── actions-cautious.md    # full risky-action guidance
+│   │   ├── doing-tasks.md
+│   │   ├── actions.md             # neutral risky-actions guidance
 │   │   ├── tools.md
 │   │   ├── tone.md
+│   │   ├── session-guidance.md
 │   │   └── env.md                 # template with {{VAR}} placeholders
+│   ├── chill/                     # chill base (emotion-research-informed)
+│   │   ├── base.json              # manifest
+│   │   ├── core.md                # consolidated intro+system+tasks+tone+session
+│   │   ├── actions.md
+│   │   ├── tools.md
+│   │   └── env.md
 │   ├── axis/
 │   │   ├── agency/
 │   │   │   ├── autonomous.md

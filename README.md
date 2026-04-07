@@ -49,6 +49,23 @@ claude-mode none             # Strip all behavioral opinions, use your own CLAUD
 | `explore` | collaborative | architect | narrow | Read, explain, suggest — no file modifications |
 | `none` | — | — | — | Strip all behavioral instructions, use your own |
 
+### Alternative base: chill
+
+The default "standard" base is derived from upstream Claude Code. The **chill** base is an alternative informed by Anthropic's [emotion research](https://www.anthropic.com/research/emotion-concepts-function) — shorter (~65% the size), calmer framing, no ALL-CAPS emphasis, with worked examples and a priority hierarchy:
+
+```bash
+claude-mode create --base chill        # Use chill base with any preset
+claude-mode safe --base chill          # Works with all presets
+```
+
+Or set it as default in your config:
+
+```json
+{ "defaultBase": "chill" }
+```
+
+You can also create your own base — see [Custom bases](#custom-bases) below.
+
 ## What problems does this solve?
 
 Claude Code's default prompt tells Claude to:
@@ -67,12 +84,13 @@ Claude Code supports `--system-prompt-file` which replaces its entire system pro
 
 ```
 prompts/
-  base/         Infrastructure prompts (tools, security, env detection)
+  base/         Standard base (derived from upstream Claude Code)
+  chill/        Alternative base (emotion-research-informed, leaner)
   axis/         Behavioral prompts organized by three axes
   modifiers/    Optional additions (readonly, context pacing)
 ```
 
-The base infrastructure prompts (`prompts/base/`) are pulled directly from Claude Code's source (validated against **v2.1.92**) — tool names, security instructions, environment detection, and session guidance all match the real system prompt. Only the behavioral instructions are replaced with the axis fragments.
+Each base has a `base.json` manifest — a flat JSON array declaring fragment order with `"axes"` and `"modifiers"` as reserved insertion points. The standard base is validated against Claude Code **v2.1.92**.
 
 The behavioral layer is composed from three independent axes — **agency** (how much initiative), **quality** (what code standard), and **scope** (how far beyond the request). Presets are just named combinations of these three values.
 
@@ -178,6 +196,11 @@ Example `.claude-mode.json`:
 - **`axes`** — custom axis values (replace built-in fragments)
 - **`presets`** — named presets composing built-in and custom values
 
+Config also supports bases:
+
+- **`defaultBase`** — base to use when `--base` isn't specified
+- **`bases`** — named bases referencing directories with `base.json` manifests
+
 Config searches `.claude-mode.json` in the current directory first, then `~/.config/claude-mode/config.json` as a global fallback. All commands accept `--global` to target the global config.
 
 All `config` subcommands:
@@ -237,6 +260,36 @@ Claude Code's Agent tool spawns sub-agents to handle tasks. How they interact wi
 **Named specialists** (Explore, Plan, etc.) have their own hardcoded system prompts and run on their own models (Explore uses Haiku). They don't see your behavioral tuning at all — they're purpose-built for specific tasks like file search or architecture planning.
 
 **What this means for custom agent definitions:** If you create custom agent definitions (markdown files in `agents/` directories), their system prompt is whatever you write in the file body — they won't inherit your `claude-mode` axes. If you want consistent behavioral tuning in a custom specialist agent, include those instructions directly in its definition.
+
+## Custom bases
+
+A base is a directory with a `base.json` manifest and markdown fragment files. The manifest is a flat JSON array:
+
+```json
+["core.md", "axes", "actions.md", "tools.md", "modifiers", "env.md"]
+```
+
+- `"axes"` — where axis fragments (agency/quality/scope) get inserted
+- `"modifiers"` — where modifier fragments get inserted
+- Everything else is a filename relative to the base directory
+
+Use a custom base via path or config:
+
+```bash
+claude-mode create --base ./my-base/             # Direct path
+```
+
+```json
+{
+  "bases": { "my-base": "./path/to/base/dir" },
+  "defaultBase": "my-base"
+}
+```
+
+The project includes two skills to help with prompt authoring:
+
+- **`/prompt-author`** — interactively guides you through creating a base, modifier, or axis value, applying emotion research principles (calm framing, positive instructions, worked examples)
+- **`/prompt-evaluate`** — scores an existing base or prompt against 10 quality criteria (negative instruction bias, ALL-CAPS inflation, lost-in-the-middle vulnerability, and more)
 
 ## Development
 

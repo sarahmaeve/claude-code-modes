@@ -16,8 +16,7 @@ change between releases but the marker should remain stable.
 | `prompts/base/intro.md` | Intro | `an interactive agent that helps users` | `UpY` | Verbatim match |
 | `prompts/base/system.md` | System Rules | `# System` | `QpY` | Verbatim match |
 | `prompts/base/doing-tasks.md` | Doing Tasks | `primarily request you to perform software engineering tasks` | `dpY` | Intentional omissions (see intentional-omissions.md) |
-| `prompts/base/actions-cautious.md` | Executing Actions with Care | `Carefully consider the reversibility and blast radius` | `cpY` | Verbatim match |
-| `prompts/base/actions-autonomous.md` | — | — | — | Project-original, no upstream equivalent |
+| `prompts/base/actions.md` | Executing Actions with Care | `hard to reverse or affect shared systems` | `cpY` | Merged from upstream cautious variant; autonomous variant removed (agency axis handles behavioral difference) |
 | `prompts/base/tools.md` | Using Your Tools | `Do NOT use the ${e7} to run commands` | `lpY` | Verbatim match (after variable substitution) |
 | `prompts/base/tone.md` | Tone and Style | `Only use emojis if the user explicitly requests it` | `apY` | Verbatim match |
 | `prompts/base/session-guidance.md` | Session Guidance | `Session-specific guidance` | `rpY` | Local version is more detailed (static vs dynamic) |
