@@ -2,15 +2,16 @@
 
 ## Overview
 
-Make the base prompt layer pluggable via manifest-driven base directories. Ship one alternative built-in base ("chill") alongside the existing "standard" base. Bases compose with the existing axis/modifier system. The manifest format uses declarative JSON with three special entry types: axis insertion, modifier insertion, and conditional fragment selection.
+Make the base prompt layer pluggable via manifest-driven base directories. Ship one alternative built-in base ("chill") alongside the existing "standard" base. Bases compose with the existing axis/modifier system.
 
 **Key architectural decisions:**
 - A base is a directory containing a `base.json` manifest and markdown fragments
-- The manifest declares fragment order using three entry types: strings (plain fragments), markers (`{ "axes": true }`, `{ "modifiers": true }`), and conditionals (`{ "select": "agency", ... }`)
+- The manifest is a flat JSON array of strings. Two reserved words — `"axes"` and `"modifiers"` — mark where axis fragments and modifier fragments get inserted. Everything else is a filename relative to the base directory.
+- No conditional fragments in the manifest. Each base writes a single actions fragment. The agency axis already handles the autonomous-vs-cautious behavioral difference.
 - `ModeConfig.base` is a string: built-in name or absolute directory path. Resolve stays pure; assemble loads the manifest and reads fragments.
 - Built-in bases ("standard", "chill") are embedded alongside axis/modifier fragments in `embedded-prompts.ts`
-- Standard base: add a `base.json` to `prompts/base/` alongside existing files — zero content changes
-- Chill base: new `prompts/chill/` directory with ~5 consolidated fragments
+- Standard base: add a `base.json` to `prompts/base/`, merge the two actions variants into one `actions.md` — axis fragments handle the behavioral difference
+- Chill base: new `prompts/chill/` directory with ~4 consolidated fragments
 
 ## Implementation Units
 
@@ -23,28 +24,12 @@ Make the base prompt layer pluggable via manifest-driven base directories. Ship 
 export const BUILTIN_BASE_NAMES = ["standard", "chill"] as const;
 export type BuiltinBaseName = (typeof BUILTIN_BASE_NAMES)[number];
 
-// Manifest entry types — a fragment list element is one of these
-export type PlainFragment = string;
+// Reserved manifest entries — "axes" and "modifiers" trigger insertion
+export const MANIFEST_RESERVED = ["axes", "modifiers"] as const;
+export type ManifestReserved = (typeof MANIFEST_RESERVED)[number];
 
-export interface AxesMarker {
-  axes: true;
-}
-
-export interface ModifiersMarker {
-  modifiers: true;
-}
-
-export interface ConditionalFragment {
-  select: "agency"; // expandable to other axes later
-  match: Record<string, string>; // axis value → fragment filename
-  default: string; // fallback fragment filename
-}
-
-export type ManifestEntry = PlainFragment | AxesMarker | ModifiersMarker | ConditionalFragment;
-
-export interface BaseManifest {
-  fragments: ManifestEntry[];
-}
+// A manifest is just a flat array of strings
+export type BaseManifest = string[];
 
 // Update ModeConfig — add base field
 export interface ModeConfig {
@@ -59,46 +44,68 @@ export interface ModeConfig {
 ```
 
 **Implementation Notes**:
-- `ManifestEntry` is a discriminated union. Type guards differentiate entries: strings are plain fragments, objects with `axes`/`modifiers` are markers, objects with `select` are conditionals.
+- The manifest type is just `string[]` — no objects, no union types, no type guards needed
+- `"axes"` and `"modifiers"` are reserved words checked at assembly time with a simple string comparison
 - `ModeConfig.base` defaults to `"standard"` — resolve sets this. Assemble reads it to locate the manifest.
 
 **Acceptance Criteria**:
 - [ ] `BUILTIN_BASE_NAMES` is an `as const` array with derived `BuiltinBaseName` type
-- [ ] `ManifestEntry` union covers all four entry kinds
+- [ ] `MANIFEST_RESERVED` defines the two reserved words
+- [ ] `BaseManifest` is `string[]`
 - [ ] `ModeConfig` includes `base: string`
 - [ ] All existing code that constructs `ModeConfig` updated to include `base`
 
 ---
 
-### Unit 2: Standard base manifest
+### Unit 2: Standard base manifest and actions merge
 
 **File**: `prompts/base/base.json`
 
 ```json
-{
-  "fragments": [
-    "intro.md",
-    "system.md",
-    { "axes": true },
-    "doing-tasks.md",
-    { "select": "agency", "match": { "autonomous": "actions-autonomous.md" }, "default": "actions-cautious.md" },
-    "tools.md",
-    "tone.md",
-    "session-guidance.md",
-    { "modifiers": true },
-    "env.md"
-  ]
-}
+[
+  "intro.md",
+  "system.md",
+  "axes",
+  "doing-tasks.md",
+  "actions.md",
+  "tools.md",
+  "tone.md",
+  "session-guidance.md",
+  "modifiers",
+  "env.md"
+]
+```
+
+**File**: `prompts/base/actions.md` (new — merges actions-autonomous.md and actions-cautious.md)
+
+The shared risky-actions content that both variants have in common. The behavioral difference (act freely vs check first) is already handled by the agency axis fragments:
+- `axis/agency/autonomous.md` says "act freely without confirmation for local, reversible actions"
+- `axis/agency/collaborative.md` and `surgical.md` say "check in at decision points"
+
+The base `actions.md` just provides the list of what constitutes risky actions and the "fix root causes" guidance:
+
+```markdown
+# Executing actions with care
+
+For actions that are hard to reverse or affect shared systems, consider the impact before proceeding:
+- Destructive operations: deleting files/branches, dropping database tables, killing processes, rm -rf, overwriting uncommitted changes
+- Hard-to-reverse operations: force-pushing (can also overwrite upstream), git reset --hard, amending published commits, removing or downgrading packages/dependencies, modifying CI/CD pipelines
+- Actions visible to others or that affect shared state: pushing code, creating/closing/commenting on PRs or issues, sending messages (Slack, email, GitHub), posting to external services, modifying shared infrastructure or permissions
+- Uploading content to third-party web tools (diagram renderers, pastebins, gists) publishes it - consider whether it could be sensitive before sending, since it may be cached or indexed even if later deleted.
+
+When you encounter an obstacle, try to identify root causes and fix underlying issues rather than bypassing safety checks (e.g. --no-verify). If you discover unexpected state like unfamiliar files, branches, or configuration, investigate before deleting or overwriting, as it may represent the user's in-progress work.
 ```
 
 **Implementation Notes**:
-- This manifest exactly reproduces the current hardcoded fragment order from `getFragmentOrder()`.
-- Fragment filenames are relative to the base directory (`prompts/base/`).
-- The conditional fragment for actions replicates the current `isAutonomous` logic: only the built-in `"autonomous"` value triggers `actions-autonomous.md`; all other agency values (including custom file paths) use `actions-cautious.md`.
+- The manifest is a flat JSON array — no objects, just strings
+- `actions-autonomous.md` and `actions-cautious.md` remain on disk for now (not deleted) but are no longer referenced by the manifest. They can be removed in a follow-up cleanup.
+- The merged `actions.md` is intentionally neutral — it describes what risky actions ARE, not what to do about them. The agency axis handles that.
 
 **Acceptance Criteria**:
-- [ ] `prompts/base/base.json` is valid JSON matching `BaseManifest`
-- [ ] Assembling with this manifest produces identical output to the current hardcoded assembly for all preset/axis/modifier combinations
+- [ ] `prompts/base/base.json` is a valid JSON array of strings
+- [ ] `prompts/base/actions.md` exists with shared risky-actions content
+- [ ] Manifest contains exactly one `"axes"` and one `"modifiers"` entry
+- [ ] All other entries are filenames that exist in `prompts/base/`
 
 ---
 
@@ -109,16 +116,14 @@ export interface ModeConfig {
 **File**: `prompts/chill/base.json`
 
 ```json
-{
-  "fragments": [
-    "core.md",
-    { "axes": true },
-    { "select": "agency", "match": { "autonomous": "actions-free.md" }, "default": "actions-careful.md" },
-    "tools.md",
-    { "modifiers": true },
-    "env.md"
-  ]
-}
+[
+  "core.md",
+  "axes",
+  "actions.md",
+  "tools.md",
+  "modifiers",
+  "env.md"
+]
 ```
 
 **File**: `prompts/chill/core.md`
@@ -179,42 +184,20 @@ Use specialized agents when the task fits their description. For simple searches
 Slash commands (e.g., /commit) invoke skills — use the Skill tool for those listed as user-invocable.
 ```
 
-**File**: `prompts/chill/actions-free.md`
+**File**: `prompts/chill/actions.md`
 
-Calm autonomous actions guidance. No anxiety-driven checklists.
+Calm, neutral risky-actions guidance. No behavioral opinion — the agency axis handles that.
 
 ```markdown
 # Taking action
 
-Handle local, reversible work — files, tests, branches, commits — without asking. That's what you're here for.
-
-For actions that are hard to reverse or affect shared systems, pause and check:
+Actions that are hard to reverse or affect shared systems warrant consideration:
 - Destructive operations (deleting files/branches, dropping tables, rm -rf)
 - Hard-to-reverse operations (force push, git reset --hard, removing dependencies)
 - Externally visible actions (pushing code, commenting on PRs/issues, posting to services)
 - Uploading to third-party tools — consider sensitivity before sending
 
 When blocked, fix the root cause rather than bypassing safety checks. If you find unexpected state (unfamiliar files, branches, config), investigate before overwriting — it may be the user's in-progress work.
-```
-
-**File**: `prompts/chill/actions-careful.md`
-
-Calm careful actions guidance. Protective caution framed as professional judgment.
-
-```markdown
-# Taking action
-
-Consider the reversibility and impact of your actions. Local, reversible work (editing files, running tests) is fine to do freely. For anything harder to reverse or visible to others, check with the user first — the cost of confirming is low, the cost of an unwanted action can be high.
-
-Actions that warrant a check:
-- Destructive operations (deleting files/branches, dropping tables, rm -rf)
-- Hard-to-reverse operations (force push, git reset --hard, removing dependencies)
-- Externally visible actions (pushing code, commenting on PRs/issues, posting to services)
-- Uploading to third-party tools — consider sensitivity before sending
-
-A user approving an action once doesn't authorize it everywhere. Match the scope of your actions to what was requested.
-
-When blocked, fix root causes rather than bypassing safety checks. If you find unexpected state, investigate before overwriting.
 ```
 
 **File**: `prompts/chill/tools.md`
@@ -259,19 +242,19 @@ gitStatus: {{GIT_STATUS}}
 ```
 
 **Implementation Notes**:
-- The chill base has 6 fragment files total (core.md, actions-free.md, actions-careful.md, tools.md, env.md, base.json)
+- The chill base has 5 fragment files total (core.md, actions.md, tools.md, env.md) plus base.json
 - `core.md` consolidates 5 standard fragments (intro, system, doing-tasks, tone, session-guidance) into one
+- Single `actions.md` — no variants. Agency axis handles the behavioral difference.
 - All standard template variables are preserved in `env.md`
 - Security guidelines are preserved but reworded without urgency language
 - The prompt content in this design is a starting point — exact wording will be refined during implementation and iteration
 
 **Acceptance Criteria**:
-- [ ] `prompts/chill/base.json` is valid JSON matching `BaseManifest`
+- [ ] `prompts/chill/base.json` is a valid JSON array of strings
 - [ ] No ALL-CAPS emphasis words in any chill fragment
 - [ ] All template variables (`{{CWD}}`, `{{PLATFORM}}`, etc.) present in `env.md`
 - [ ] Combined chill base fragments (excluding env.md) are 40-60% the size of combined standard base fragments (excluding env.md)
 - [ ] `core.md` covers identity, system mechanics, task guidance, tone, and session guidance
-- [ ] Actions variants exist and produce different output for autonomous vs non-autonomous agency
 
 ---
 
@@ -454,23 +437,10 @@ Update `resolveConfig` to:
 **File**: `src/assemble.ts`
 
 ```typescript
-import type { BaseManifest, ManifestEntry, ModeConfig, TemplateVars, AssembleOptions } from "./types.js";
-import { BUILTIN_BASE_NAMES, AGENCY_VALUES } from "./types.js";
+import type { BaseManifest, ModeConfig, TemplateVars, AssembleOptions } from "./types.js";
+import { BUILTIN_BASE_NAMES, MANIFEST_RESERVED } from "./types.js";
 
-// Type guards for manifest entries
-function isAxesMarker(entry: ManifestEntry): entry is { axes: true } {
-  return typeof entry === "object" && "axes" in entry;
-}
-
-function isModifiersMarker(entry: ManifestEntry): entry is { modifiers: true } {
-  return typeof entry === "object" && "modifiers" in entry;
-}
-
-function isConditionalFragment(entry: ManifestEntry): entry is ConditionalFragment {
-  return typeof entry === "object" && "select" in entry;
-}
-
-/** Loads and validates a base manifest. Built-in bases use embedded data; custom bases read from disk. */
+/** Loads a base manifest. Built-in bases use embedded data; custom bases read from disk. */
 function loadBaseManifest(base: string, promptsDir: string): { manifest: BaseManifest; baseDir: string } {
   if ((BUILTIN_BASE_NAMES as readonly string[]).includes(base)) {
     // Built-in: manifest is embedded
@@ -498,20 +468,23 @@ function loadBaseManifest(base: string, promptsDir: string): { manifest: BaseMan
   return { manifest, baseDir: base };
 }
 
-/** Validates a manifest has required markers and resolves all entries to fragment paths. */
+/** Validates a manifest has both required reserved words. */
 function validateManifest(manifest: BaseManifest, baseName: string): void {
-  let hasAxes = false;
-  let hasModifiers = false;
-  for (const entry of manifest.fragments) {
-    if (isAxesMarker(entry)) hasAxes = true;
-    if (isModifiersMarker(entry)) hasModifiers = true;
+  if (!manifest.includes("axes")) {
+    throw new Error(`Base "${baseName}" manifest is missing an "axes" entry`);
   }
-  if (!hasAxes) {
-    throw new Error(`Base "${baseName}" manifest is missing an { "axes": true } marker`);
+  if (!manifest.includes("modifiers")) {
+    throw new Error(`Base "${baseName}" manifest is missing a "modifiers" entry`);
   }
-  if (!hasModifiers) {
-    throw new Error(`Base "${baseName}" manifest is missing a { "modifiers": true } marker`);
+}
+
+/** Resolves a fragment filename to an embedded key or absolute path. */
+function resolveFragmentPath(filename: string, baseDir: string, baseName: string): string {
+  if ((BUILTIN_BASE_NAMES as readonly string[]).includes(baseName)) {
+    const prefix = baseName === "standard" ? "base" : baseName;
+    return `${prefix}/${filename}`;
   }
+  return join(baseDir, filename);
 }
 
 /**
@@ -524,11 +497,8 @@ export function getFragmentOrder(mode: ModeConfig, promptsDir: string): string[]
 
   const fragments: string[] = [];
 
-  for (const entry of manifest.fragments) {
-    if (typeof entry === "string") {
-      // Plain fragment — resolve relative to base directory
-      fragments.push(resolveFragmentPath(entry, baseDir, mode.base));
-    } else if (isAxesMarker(entry)) {
+  for (const entry of manifest) {
+    if (entry === "axes") {
       // Insert axis fragments (skipped for none mode)
       if (mode.axes) {
         for (const [axis, value] of [
@@ -543,7 +513,7 @@ export function getFragmentOrder(mode: ModeConfig, promptsDir: string): string[]
           }
         }
       }
-    } else if (isModifiersMarker(entry)) {
+    } else if (entry === "modifiers") {
       // Insert modifier fragments
       if (mode.modifiers.contextPacing) {
         fragments.push("modifiers/context-pacing.md");
@@ -554,35 +524,17 @@ export function getFragmentOrder(mode: ModeConfig, promptsDir: string): string[]
       for (const customPath of mode.modifiers.custom) {
         fragments.push(customPath);
       }
-    } else if (isConditionalFragment(entry)) {
-      // Select fragment based on axis value
-      const axisValue = mode.axes?.[entry.select] ?? null;
-      const isBuiltinMatch = axisValue !== null
-        && !isAbsolute(axisValue)
-        && axisValue in entry.match;
-      const selectedFile = isBuiltinMatch ? entry.match[axisValue!] : entry.default;
-      fragments.push(resolveFragmentPath(selectedFile, baseDir, mode.base));
+    } else {
+      // Plain fragment filename — resolve relative to base directory
+      fragments.push(resolveFragmentPath(entry, baseDir, mode.base));
     }
   }
 
   return fragments;
 }
-
-/** Resolves a fragment filename relative to the base directory.
- *  For built-in bases, returns the embedded key. For custom bases, returns absolute path.
- */
-function resolveFragmentPath(filename: string, baseDir: string, baseName: string): string {
-  if ((BUILTIN_BASE_NAMES as readonly string[]).includes(baseName)) {
-    // Built-in: use embedded key format
-    const prefix = baseName === "standard" ? "base" : baseName;
-    return `${prefix}/${filename}`;
-  }
-  // Custom: absolute path
-  return join(baseDir, filename);
-}
 ```
 
-Update `assemblePrompt` signature — `promptsDir` is already in `AssembleOptions`, and `getFragmentOrder` now needs it too:
+Update `assemblePrompt` — `getFragmentOrder` now needs `promptsDir`:
 
 ```typescript
 export function assemblePrompt(options: AssembleOptions): string {
@@ -593,21 +545,20 @@ export function assemblePrompt(options: AssembleOptions): string {
 ```
 
 **Implementation Notes**:
+- No type guards, no objects, no union discrimination. Just `entry === "axes"` and `entry === "modifiers"` string checks.
 - `getFragmentOrder` changes signature: now takes `promptsDir` to resolve built-in base directories
 - The standard base's embedded fragment keys stay as `base/intro.md`, etc. — the `resolveFragmentPath` helper maps `standard` base fragments to `base/` prefix, `chill` base fragments to `chill/` prefix
-- Conditional fragment resolution: only matches against `entry.match` when the axis value is a built-in name (not a file path). Custom agency file paths always get the `default` fragment — same logic as the current `isAutonomous` check
 - `readFragment` stays unchanged — it already handles both embedded and disk lookups
 - Axis fragments and modifier fragments continue using the same resolution logic (relative embedded keys or absolute paths)
 
 **Acceptance Criteria**:
-- [ ] `getFragmentOrder` with standard base produces identical output to current hardcoded implementation for all axis/modifier combinations
+- [ ] `getFragmentOrder` with standard base and all axis/modifier combos produces correct fragment lists
 - [ ] `getFragmentOrder` with chill base produces correct fragment paths from the chill manifest
-- [ ] Axes marker inserts axis fragments in order (agency, quality, scope) — skipped for none mode
-- [ ] Modifiers marker inserts context-pacing, readonly, then custom modifiers — in that order
-- [ ] Conditional fragment selects `match[value]` for built-in axis names, `default` for everything else
+- [ ] `"axes"` entry inserts axis fragments in order (agency, quality, scope) — skipped for none mode
+- [ ] `"modifiers"` entry inserts context-pacing, readonly, then custom modifiers — in that order
 - [ ] Missing manifest throws descriptive error
-- [ ] Manifest without axes marker throws error
-- [ ] Manifest without modifiers marker throws error
+- [ ] Manifest without `"axes"` throws error
+- [ ] Manifest without `"modifiers"` throws error
 
 ---
 
@@ -618,12 +569,11 @@ export function assemblePrompt(options: AssembleOptions): string {
 Update `FRAGMENT_PATHS` to include:
 ```typescript
 const FRAGMENT_PATHS = [
-  // Standard base (existing)
+  // Standard base (existing, with actions.md replacing the two variants)
   "base/intro.md",
   "base/system.md",
   "base/doing-tasks.md",
-  "base/actions-autonomous.md",
-  "base/actions-cautious.md",
+  "base/actions.md",
   "base/tools.md",
   "base/tone.md",
   "base/session-guidance.md",
@@ -633,8 +583,7 @@ const FRAGMENT_PATHS = [
   // Chill base (new)
   "chill/base.json",
   "chill/core.md",
-  "chill/actions-free.md",
-  "chill/actions-careful.md",
+  "chill/actions.md",
   "chill/tools.md",
   "chill/env.md",
   // Axis fragments (existing)
@@ -655,15 +604,14 @@ const FRAGMENT_PATHS = [
 
 **Implementation Notes**:
 - JSON files (manifests) get embedded alongside markdown files — same escaping applies
-- The `base/base.json` key maps to `prompts/base/base.json` on disk
-- The `chill/core.md` key maps to `prompts/chill/core.md` on disk
-- Fragment count increases from 20 to 27 (9 standard + 1 standard manifest + 6 chill files + 9 axis + 2 modifiers)
+- `base/actions-autonomous.md` and `base/actions-cautious.md` removed from the list, replaced by `base/actions.md`
+- Fragment count changes from 20 to 25 (8 standard + 1 standard manifest + 4 chill + 1 chill manifest + 9 axis + 2 modifiers)
 
 **Acceptance Criteria**:
-- [ ] Running `bun scripts/generate-prompts.ts` succeeds and produces 27 entries
+- [ ] Running `bun scripts/generate-prompts.ts` succeeds and produces 25 entries
 - [ ] All chill base fragments are embedded with correct keys
 - [ ] Both `base.json` manifests are embedded and parseable as JSON
-- [ ] Existing standard and axis fragment keys unchanged
+- [ ] `base/actions-autonomous.md` and `base/actions-cautious.md` no longer in embedded map
 
 ---
 
@@ -795,14 +743,12 @@ New tests using `baseParsed` fixture (updated to include `base: undefined`):
 New tests:
 - `getFragmentOrder` with standard base and `autonomousMode` produces correct fragments (matches current hardcoded output)
 - `getFragmentOrder` with standard base and `noneMode` produces correct fragments
-- `getFragmentOrder` with chill base and `autonomousMode` produces `["chill/core.md", axis fragments..., "chill/actions-free.md", "chill/tools.md", modifier fragments..., "chill/env.md"]`
-- `getFragmentOrder` with chill base and `collaborativeMode` uses `chill/actions-careful.md`
+- `getFragmentOrder` with chill base produces `["chill/core.md", axis fragments..., "chill/actions.md", "chill/tools.md", modifier fragments..., "chill/env.md"]`
 - `assemblePrompt` with chill base produces valid output with no unreplaced template vars
 - `assemblePrompt` with chill base contains no ALL-CAPS emphasis words
 - Missing manifest throws descriptive error
-- Manifest without `{ "axes": true }` throws error
-- Manifest without `{ "modifiers": true }` throws error
-- Conditional fragment with custom agency path uses default variant
+- Manifest without `"axes"` entry throws error
+- Manifest without `"modifiers"` entry throws error
 
 ### Integration Tests: `src/integration.test.ts`
 
@@ -823,11 +769,11 @@ New tests:
 
 ### Embedded Prompts Tests: `src/embedded-prompts.test.ts`
 
-Update `EXPECTED_FRAGMENTS` to include the 7 new entries (standard manifest + 6 chill files). Update count assertion from 20 to 27.
+Update `EXPECTED_FRAGMENTS` to include the 5 new entries (standard manifest + 4 chill files + chill manifest) minus the 2 removed actions variants. Update count assertion from 20 to 25.
 
 ### Generate Prompts Tests: `scripts/generate-prompts.test.ts`
 
-Update count assertion from 20 to 27. Verify chill fragments are included and match disk files.
+Update count assertion from 20 to 25. Verify chill fragments are included and match disk files.
 
 ## Verification Checklist
 
