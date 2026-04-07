@@ -12,6 +12,7 @@ bun run src/build-prompt.ts --help          # test CLI directly
 bun run src/build-prompt.ts create --print  # inspect assembled prompt
 bun run src/build-prompt.ts config show     # view current config
 bun run src/cli.ts create                   # full e2e (needs claude installed)
+bun scripts/bump-version.ts patch           # bump version, commit, tag, push (triggers release CI)
 ```
 
 ## Project Structure
