@@ -5,6 +5,7 @@ import { loadConfig, resolveConfigPath, type LoadedConfig } from "./config.js";
 import { resolveConfig } from "./resolve.js";
 import { getFragmentOrder } from "./assemble.js";
 import { detectEnv, buildTemplateVars } from "./env.js";
+import { EMBEDDED_PROMPTS } from "./embedded-prompts.js";
 import type { TemplateVars } from "./types.js";
 
 const PROVENANCE_VALUES = ["built-in", "config-defined", "cli-path"] as const;
@@ -118,8 +119,9 @@ function detectWarnings(
 
   for (const frag of fragments) {
     if (frag.provenance === "built-in") {
-      // Only check existence for built-in fragments
-      if (!existsSync(frag.resolvedPath)) {
+      // Built-in fragments: check embedded prompts first, then disk
+      const embedded = frag.path in EMBEDDED_PROMPTS;
+      if (!embedded && !existsSync(frag.resolvedPath)) {
         warnings.push({
           fragmentIndex: frag.index,
           fragmentPath: frag.path,
@@ -264,8 +266,12 @@ function formatInspectOutput(result: InspectResult): string {
   return lines.join("\n") + "\n";
 }
 
-/** Reads a fragment file, returning its content or null if missing. */
-function readFragmentContent(resolvedPath: string): string | null {
+/** Reads a fragment, checking embedded prompts first for built-in fragments. */
+function readFragmentContent(fragPath: string, resolvedPath: string): string | null {
+  // Built-in fragments: check embedded prompts first (required for compiled binary)
+  if (!isAbsolute(fragPath) && fragPath in EMBEDDED_PROMPTS) {
+    return EMBEDDED_PROMPTS[fragPath];
+  }
   try {
     return readFileSync(resolvedPath, "utf8");
   } catch {
@@ -303,7 +309,7 @@ export function runInspectCommand(argv: string[], promptsDir: string): void {
   const fragmentContents = new Map<number, string | null>();
   if (verbose) {
     for (const frag of fragments) {
-      fragmentContents.set(frag.index, readFragmentContent(frag.resolvedPath));
+      fragmentContents.set(frag.index, readFragmentContent(frag.path, frag.resolvedPath));
     }
   }
 
