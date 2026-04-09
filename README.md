@@ -2,7 +2,7 @@
 
 Take control of how Claude Code behaves. The default system prompt is a one-size-fits-all compromise — it makes Claude cautious, minimal, and terse in situations where you actually want it to be bold, thorough, and opinionated. This tool fixes that.
 
-`claude-mode` is a CLI wrapper that launches Claude Code with a replacement system prompt. It keeps everything Claude Code needs to function (tool instructions, security, environment detection) and swaps out the behavioral layer — the part that controls how much initiative Claude takes, what code quality standard it targets, and how far beyond your request it's willing to go.
+`claude-mode` is a CLI launcher for Claude Code with a replacement system prompt. It keeps everything Claude Code needs to function (tool instructions, security, environment detection) and swaps out the behavioral layer — the part that controls how much initiative Claude takes, what code quality standard it targets, and how far beyond your request it's willing to go.
 
 ## Install
 
@@ -107,7 +107,7 @@ When you run `claude-mode create`, the tool:
 4. Writes the assembled prompt to a temp file
 5. Spawns `claude --system-prompt-file /tmp/claude-mode-xxx.md` with inherited stdio
 
-`Bun.spawn` gives Claude Code direct TTY ownership — no wrapper process sitting in between.
+`Bun.spawn` gives Claude Code direct TTY ownership — no intermediary process sitting in between.
 
 ## Customizing
 

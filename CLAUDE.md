@@ -1,6 +1,6 @@
 # claude-code-modes
 
-CLI wrapper that launches Claude Code with behaviorally-tuned system prompts. See VISION.md, SPEC.md.
+CLI launcher for Claude Code with behaviorally-tuned system prompts. See VISION.md, SPEC.md.
 
 **Repo:** https://github.com/nklisch/claude-code-modes
 
