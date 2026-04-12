@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.2.4
+
+**Improvements**
+
+- Synced base prompts against Claude Code v2.1.104: added missing UI/frontend testing
+  bullet to both standard and chill bases, fixed model family ordering (4.6 before 4.5),
+  documented "short and concise" as intentional omission (quality axis controls verbosity)
+- Fixed extraction script markers that broke between releases (`# System` too generic,
+  `${e7}` variable name changed, tone marker collided with Write tool description); also
+  fixed `$`-prefixed function names not matched by extractor regex
+- Embedded prompts now auto-generated on `bun install` via postinstall hook
+- Updated project description to use "launcher" instead of "wrapper"
+
 ## v0.2.3
 
 **Fixes**
