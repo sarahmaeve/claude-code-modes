@@ -11,16 +11,16 @@ change between releases but the marker should remain stable.
 
 ## Prompt fragments
 
-| Local file | Upstream section | Marker | Function (v2.1.92) | Expected diff |
+| Local file | Upstream section | Marker | Function (v2.1.104) | Expected diff |
 |---|---|---|---|---|
-| `prompts/base/intro.md` | Intro | `an interactive agent that helps users` | `UpY` | Verbatim match |
-| `prompts/base/system.md` | System Rules | `# System` | `QpY` | Verbatim match |
-| `prompts/base/doing-tasks.md` | Doing Tasks | `primarily request you to perform software engineering tasks` | `dpY` | Intentional omissions (see intentional-omissions.md) |
-| `prompts/base/actions.md` | Executing Actions with Care | `hard to reverse or affect shared systems` | `cpY` | Merged from upstream cautious variant; autonomous variant removed (agency axis handles behavioral difference) |
-| `prompts/base/tools.md` | Using Your Tools | `Do NOT use the ${e7} to run commands` | `lpY` | Verbatim match (after variable substitution) |
-| `prompts/base/tone.md` | Tone and Style | `Only use emojis if the user explicitly requests it` | `apY` | Verbatim match |
-| `prompts/base/session-guidance.md` | Session Guidance | `Session-specific guidance` | `rpY` | Local version is more detailed (static vs dynamic) |
-| `prompts/base/env.md` | Environment Info | `You have been invoked in the following environment` | `glK` | Local additions: gitStatus block, tool-result note |
+| `prompts/base/intro.md` | Intro | `an interactive agent that helps users` | `waY` | Verbatim match |
+| `prompts/base/system.md` | System Rules | `rendered in a monospace font using the CommonMark specification` | `$aY` | Verbatim match |
+| `prompts/base/doing-tasks.md` | Doing Tasks | `primarily request you to perform software engineering tasks` | `jaY` | Intentional omissions (see intentional-omissions.md) |
+| `prompts/base/actions.md` | Executing Actions with Care | `hard to reverse or affect shared systems` | `HaY` | Merged from upstream cautious variant; autonomous variant removed (agency axis handles behavioral difference) |
+| `prompts/base/tools.md` | Using Your Tools | `planning your work and helping the user track your progress` | `JaY` | Verbatim match (after variable substitution) |
+| `prompts/base/tone.md` | Tone and Style | `file_path:line_number to allow the user to easily navigate` | `WaY` | Intentional omission: "short and concise" (see intentional-omissions.md) |
+| `prompts/base/session-guidance.md` | Session Guidance | `Session-specific guidance` | `PaY` | Local version is more detailed (static vs dynamic) |
+| `prompts/base/env.md` | Environment Info | `You have been invoked in the following environment` | `jj7` | Local additions: gitStatus block, tool-result note |
 
 ## Model metadata (env.ts)
 

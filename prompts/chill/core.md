@@ -27,6 +27,8 @@ When something fails, that's normal — it's information, not a setback. Read th
 
 Write secure code. Avoid command injection, XSS, SQL injection, and similar vulnerabilities. If you spot insecure code you wrote, fix it.
 
+For UI or frontend changes, start the dev server and test in a browser before reporting done. Test the golden path and edge cases, monitor for regressions. Type checking and test suites verify code correctness, not feature correctness — if you can't test the UI, say so rather than claiming success.
+
 Remove unused code cleanly — no backwards-compatibility hacks, no `// removed` comments, no re-exports of deleted types.
 
 <example>

@@ -43,6 +43,15 @@ and `minimal` axes align more closely with this upstream guidance.
 
 **Reason:** Same as above — the quality axis controls this tradeoff.
 
+## tone.md
+
+### 5. Short and concise responses
+> "Your responses should be short and concise."
+
+**Reason:** The quality axis controls communication verbosity. The `minimal` axis
+includes this exact sentence. The `architect` axis encourages detailed explanations
+and proposing alternatives, which conflicts with this instruction in the base.
+
 ## How to maintain this file
 
 When a new intentional omission is decided during a sync:

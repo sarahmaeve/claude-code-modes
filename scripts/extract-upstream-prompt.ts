@@ -98,7 +98,7 @@ function findFnNameContaining(src: string, marker: string): string | null {
   const searchStart = Math.max(0, idx - 10_000);
   const prefix = src.slice(searchStart, idx);
 
-  const fnRegex = /function\s+(\w+)\s*\(/g;
+  const fnRegex = /function\s+([\w$]+)\s*\(/g;
   let match: RegExpExecArray | null;
   let lastMatch: RegExpExecArray | null = null;
   while ((match = fnRegex.exec(prefix)) !== null) lastMatch = match;
@@ -131,11 +131,11 @@ function extractBacktickString(src: string, marker: string, maxLen = 30_000): st
 
 const SECTIONS = [
   { label: "Intro", marker: "an interactive agent that helps users" },
-  { label: "System Rules", marker: "# System" },
+  { label: "System Rules", marker: "rendered in a monospace font using the CommonMark specification" },
   { label: "Doing Tasks", marker: "primarily request you to perform software engineering tasks" },
   { label: "Executing Actions with Care", marker: "Carefully consider the reversibility and blast radius" },
-  { label: "Using Your Tools", marker: "Do NOT use the ${e7} to run commands" },
-  { label: "Tone and Style", marker: "Only use emojis if the user explicitly requests it" },
+  { label: "Using Your Tools", marker: "planning your work and helping the user track your progress" },
+  { label: "Tone and Style", marker: "file_path:line_number to allow the user to easily navigate" },
   { label: "Output Efficiency", marker: "Go straight to the point" },
   { label: "Session Guidance", marker: "Session-specific guidance" },
   { label: "Environment Info", marker: "You have been invoked in the following environment" },
