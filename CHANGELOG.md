@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.6
+
+**Fixes**
+
+- Fixed macOS binary rejected by Gatekeeper after install: `bun build --compile` embeds
+  Bun's own signature which becomes invalid for custom-compiled binaries; release workflow
+  now strips the stale signature and re-signs ad-hoc with `codesign -s -`
+
 ## v0.2.5
 
 **Improvements**
