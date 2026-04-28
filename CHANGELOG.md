@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.2.7
+
+**Improvements**
+
+- Synced base prompts against Claude Code v2.1.121:
+  - Fixed extraction script for the new binary distribution layout (v2.1.121 no longer
+    ships `cli.js`; the script now downloads the linux-x64 native binary and slices the
+    embedded JS bundle from it)
+  - Added new `text-output.md` fragment matching upstream's new "# Text output (does not
+    apply to tool calls)" section — narration guidance, end-of-turn summary rules, in-code
+    comment defaults
+  - Added "For exploratory questions" response style bullet to `doing-tasks.md`
+  - Updated `session-guidance.md`: switched search-tool wording to `` `find`/`grep` via Bash ``
+    and added the new ultrareview explanation bullet
+  - Fixed `env.md` indentation (`Is a git repository:` was sub-bulleted; now top-level)
+  - Updated chill base: model family bumped to Claude 4.X / Opus 4.7, text-output section
+    added in chill style, ultrareview note and find/grep wording in "Working in this session"
+  - Updated `fragment-map.md` with v2.1.121 function names and new text-output row
+
 ## v0.2.6
 
 **Fixes**

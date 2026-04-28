@@ -21,6 +21,7 @@ const FRAGMENT_PATHS = [
   "base/actions.md",
   "base/tools.md",
   "base/tone.md",
+  "base/text-output.md",
   "base/session-guidance.md",
   "base/env.md",
   // Standard base manifest

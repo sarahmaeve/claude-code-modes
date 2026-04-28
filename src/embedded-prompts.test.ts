@@ -15,6 +15,7 @@ const EXPECTED_FRAGMENTS = [
   "base/actions.md",
   "base/tools.md",
   "base/tone.md",
+  "base/text-output.md",
   "base/session-guidance.md",
   "base/env.md",
   // Standard base manifest
@@ -45,8 +46,8 @@ const EXPECTED_FRAGMENTS = [
 ] as const;
 
 describe("EMBEDDED_PROMPTS", () => {
-  test("contains exactly 29 fragments", () => {
-    expect(Object.keys(EMBEDDED_PROMPTS).length).toBe(29);
+  test("contains exactly 30 fragments", () => {
+    expect(Object.keys(EMBEDDED_PROMPTS).length).toBe(30);
   });
 
   test("all expected fragment keys are present", () => {

@@ -14,13 +14,20 @@
  * Output: upstream-prompts/claude-code-v{version}-system-prompt.md
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, openSync, readSync, closeSync, statSync } from "fs";
 import { execSync } from "child_process";
 import { join } from "path";
 
 const PROJECT_ROOT = join(import.meta.dir, "..");
 const TMP = join(PROJECT_ROOT, ".tmp-extract");
 const OUT_DIR = join(PROJECT_ROOT, "upstream-prompts");
+
+// Sentinel marker used to locate the JS bundle inside compiled native binaries.
+const BUNDLE_SENTINEL = "an interactive agent that helps users";
+// Window around the sentinel to slice out of the binary, in bytes.
+// Must cover the CLAUDE_CODE_SIMPLE region (~12MB before) and prompt fragments.
+const BUNDLE_WINDOW_BEFORE = 20 * 1024 * 1024;
+const BUNDLE_WINDOW_AFTER = 5 * 1024 * 1024;
 
 // ---------------------------------------------------------------------------
 // Download & unpack
@@ -33,15 +40,86 @@ function downloadPackage(version?: string): { src: string; resolvedVersion: stri
   const spec = version ? `@anthropic-ai/claude-code@${version}` : "@anthropic-ai/claude-code";
   console.log(`Downloading ${spec}...`);
   execSync(`npm pack ${spec} --pack-destination ${TMP} 2>&1`, { encoding: "utf8" });
-  execSync(`cd ${TMP} && tar xzf *.tgz`, { encoding: "utf8" });
+  execSync(`cd ${TMP} && tar xzf anthropic-ai-claude-code-*.tgz`, { encoding: "utf8" });
 
   const pkg = JSON.parse(readFileSync(join(TMP, "package", "package.json"), "utf8"));
   const resolvedVersion: string = pkg.version;
 
+  // Legacy layout: cli.js shipped directly in the wrapper package.
   const cliPath = join(TMP, "package", "cli.js");
-  if (!existsSync(cliPath)) throw new Error("cli.js not found in package");
+  if (existsSync(cliPath)) {
+    return { src: readFileSync(cliPath, "utf8"), resolvedVersion };
+  }
 
-  return { src: readFileSync(cliPath, "utf8"), resolvedVersion };
+  // Modern layout (v2.1.121+): wrapper package contains only a binary launcher.
+  // The actual JS bundle is embedded in a platform-specific native binary
+  // shipped via optionalDependencies. Download linux-x64 (any platform works
+  // since the embedded JS source is identical across builds).
+  console.log(`No cli.js — fetching native binary for v${resolvedVersion}...`);
+  return { src: extractFromNativeBinary(resolvedVersion), resolvedVersion };
+}
+
+function extractFromNativeBinary(version: string): string {
+  const nativeSpec = `@anthropic-ai/claude-code-linux-x64@${version}`;
+  const nativeDir = join(TMP, "native");
+  mkdirSync(nativeDir, { recursive: true });
+  console.log(`Downloading ${nativeSpec}...`);
+  execSync(`npm pack ${nativeSpec} --pack-destination ${nativeDir} 2>&1`, { encoding: "utf8" });
+  execSync(`cd ${nativeDir} && tar xzf anthropic-ai-claude-code-linux-x64-*.tgz`, { encoding: "utf8" });
+
+  const binPath = join(nativeDir, "package", "claude");
+  if (!existsSync(binPath)) throw new Error(`Native binary not found at ${binPath}`);
+
+  return sliceJsBundle(binPath);
+}
+
+/**
+ * Read a window of the native binary around the JS bundle sentinel.
+ *
+ * The Bun-compiled binary embeds the bundled JS source as plain UTF-8 in a
+ * contiguous region of the file. We locate that region by scanning for a
+ * stable natural-language sentinel and grab a window large enough to cover all
+ * prompt-related functions on either side.
+ */
+function sliceJsBundle(binPath: string): string {
+  const size = statSync(binPath).size;
+  const fd = openSync(binPath, "r");
+  try {
+    const sentinelOffset = findFirstOccurrence(fd, size, BUNDLE_SENTINEL);
+    if (sentinelOffset < 0) {
+      throw new Error(`Sentinel not found in ${binPath} — bundle layout may have changed`);
+    }
+    const start = Math.max(0, sentinelOffset - BUNDLE_WINDOW_BEFORE);
+    const end = Math.min(size, sentinelOffset + BUNDLE_WINDOW_AFTER);
+    const length = end - start;
+    const buf = Buffer.alloc(length);
+    readSync(fd, buf, 0, length, start);
+    return buf.toString("utf8");
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/** Stream-search a file for the first byte offset of `needle`. */
+function findFirstOccurrence(fd: number, size: number, needle: string): number {
+  const needleBuf = Buffer.from(needle, "utf8");
+  const chunkSize = 4 * 1024 * 1024;
+  const overlap = needleBuf.length;
+  const buf = Buffer.alloc(chunkSize + overlap);
+  let pos = 0;
+  let carry = 0;
+  while (pos < size) {
+    const toRead = Math.min(chunkSize, size - pos);
+    const bytesRead = readSync(fd, buf, carry, toRead, pos);
+    if (bytesRead === 0) break;
+    const haystackEnd = carry + bytesRead;
+    const idx = buf.subarray(0, haystackEnd).indexOf(needleBuf);
+    if (idx !== -1) return pos - carry + idx;
+    carry = Math.min(overlap, haystackEnd);
+    buf.copy(buf, 0, haystackEnd - carry, haystackEnd);
+    pos += bytesRead;
+  }
+  return -1;
 }
 
 // ---------------------------------------------------------------------------

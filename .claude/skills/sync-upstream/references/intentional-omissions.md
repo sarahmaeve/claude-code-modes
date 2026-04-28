@@ -13,6 +13,9 @@ philosophy (minimal/pragmatic) that the quality axis needs to override per-mode.
 > Generally prefer editing an existing file to creating a new one, as this prevents
 > file bloat and builds on existing work more effectively."
 
+Also covers the leaner v2.1.121 wording:
+> "Prefer editing existing files to creating new ones."
+
 **Reason:** The `architect` quality axis encourages creating well-structured files.
 The `minimal` axis discourages it. This is axis-controlled.
 

@@ -1,7 +1,7 @@
 # Environment
 You have been invoked in the following environment:
  - Primary working directory: {{CWD}}
-  - Is a git repository: {{IS_GIT}}
+ - Is a git repository: {{IS_GIT}}
  - Platform: {{PLATFORM}}
  - Shell: {{SHELL}}
  - OS Version: {{OS_VERSION}}

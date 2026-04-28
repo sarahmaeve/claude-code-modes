@@ -11,16 +11,17 @@ change between releases but the marker should remain stable.
 
 ## Prompt fragments
 
-| Local file | Upstream section | Marker | Function (v2.1.112) | Expected diff |
+| Local file | Upstream section | Marker | Function (v2.1.121) | Expected diff |
 |---|---|---|---|---|
-| `prompts/base/intro.md` | Intro | `an interactive agent that helps users` | `P6A` | Verbatim match |
-| `prompts/base/system.md` | System Rules | `rendered in a monospace font using the CommonMark specification` | `W6A` | Verbatim match |
-| `prompts/base/doing-tasks.md` | Doing Tasks | `primarily request you to perform software engineering tasks` | `D6A` | Intentional omissions (see intentional-omissions.md) |
-| `prompts/base/actions.md` | Executing Actions with Care | `hard to reverse or affect shared systems` | `Z6A` | Merged from upstream cautious variant; autonomous variant removed (agency axis handles behavioral difference) |
-| `prompts/base/tools.md` | Using Your Tools | `planning your work and helping the user track your progress` | `f6A` | Verbatim match (after variable substitution) |
-| `prompts/base/tone.md` | Tone and Style | `file_path:line_number to allow the user to easily navigate` | `V6A` | Intentional omission: "short and concise" (see intentional-omissions.md) |
-| `prompts/base/session-guidance.md` | Session Guidance | `Session-specific guidance` | `T6A` | Verbatim match (after variable substitution) |
-| `prompts/base/env.md` | Environment Info | `You have been invoked in the following environment` | `v85` | Local additions: gitStatus block, tool-result note |
+| `prompts/base/intro.md` | Intro | `an interactive agent that helps users` | `UO4` | Verbatim match |
+| `prompts/base/system.md` | System Rules | `rendered in a monospace font using the CommonMark specification` | `uO5` | Verbatim match |
+| `prompts/base/doing-tasks.md` | Doing Tasks | `primarily request you to perform software engineering tasks` | `mO5` | Intentional omissions (see intentional-omissions.md) |
+| `prompts/base/actions.md` | Executing Actions with Care | `hard to reverse or affect shared systems` | `pO5` | Merged from upstream cautious variant; autonomous variant removed (agency axis handles behavioral difference) |
+| `prompts/base/tools.md` | Using Your Tools | `planning your work and helping the user track your progress` | `BO5` | Verbatim match (after variable substitution) |
+| `prompts/base/tone.md` | Tone and Style | `file_path:line_number to allow the user to easily navigate` | `QO5` | Intentional omission: "short and concise" (see intentional-omissions.md) |
+| `prompts/base/text-output.md` | Text Output | `Assume users can't see most tool calls or thinking` | `hO5` | Verbatim match (gated on `qO(H)` returning false — default for most models) |
+| `prompts/base/session-guidance.md` | Session Guidance | `Session-specific guidance` | `gO5` | Verbatim match (after variable substitution) |
+| `prompts/base/env.md` | Environment Info | `You have been invoked in the following environment` | `iO5` | Local additions: gitStatus block, tool-result note |
 
 ## Model metadata (env.ts)
 
